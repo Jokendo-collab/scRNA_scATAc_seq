@@ -214,6 +214,56 @@ plot2 <- FeaturePlot(
 
 plot1 | plot2
 
+#Another way to find DA regions between two groups of cells is to look at the fold change accessibility between two groups of cells.
+
+fc <- FoldChange(pbmc, ident.1 = "CD4 Naive", ident.2 = "CD14 Mono")
+head(fc)
+
+#Plotting genomic regions
+#We can plot the frequency of Tn5 integration across regions of the genome for cells grouped by cluster, cell type, or
+#any other metadata stored in the object for any genomic region using the CoveragePlot() function. 
+
+# set plotting order
+levels(pbmc) <- c("CD4 Naive","CD4 Memory","CD8 Naive","CD8 Effector","DN T","NK CD56bright","NK CD56Dim","pre-B",'pro-B',"pDC","DC","CD14 Mono",'CD16 Mono')
+
+#genonome coverage
+CoveragePlot(
+  object = pbmc,
+  region = rownames(da_peaks)[1:3],
+  extend.upstream = 40000,
+  extend.downstream = 20000
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
