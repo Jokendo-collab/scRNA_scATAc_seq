@@ -1,2 +1,2 @@
 # scRNA_scATAc_seq
-scRNA and scATAC analysis scripts
+Analysis and interpration of scRNAseq and scATACseq data from the zebrefish project
