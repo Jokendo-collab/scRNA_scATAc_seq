@@ -1,32 +1,35 @@
 #set working directory
 #this workflow was adapted from: https://stuartlab.org/signac/articles/pbmc_vignette.html
-setwd("/Users/okendojo/Desktop/scRNA/atacTutorial")
+setwd("/Users/okendojo/Desktop/scRNA/hui_data /24hpa_outs_040323")
 
 #Load all the libraries needed for the analysis
 library(Signac)
 library(Seurat)
-library(GenomeInfoDb)
 library(EnsDb.Hsapiens.v75)
 library(ggplot2)
 library(patchwork)
+library(rtracklayer)
+library(GenomicRanges)
+library(GenomicFeatures)
+library(GenomeInfoDb)
+library(org.Dr.eg.db)
 set.seed(1234)
 
+
 #PRE-PROCESSING WORKFLOW
-counts <- Read10X_h5(filename = "atac_v1_pbmc_10k_filtered_peak_bc_matrix.h5")
+counts <- Read10X_h5(filename = "24hpa_filtered_feature_bc_matrix.h5")
 metadata <- read.csv(
-  file = "atac_v1_pbmc_10k_singlecell.csv",
+  file = "24hpa_per_barcode_metrics.csv",
   header = TRUE,
   row.names = 1
 )
 
-chrom_assay <- CreateChromatinAssay(
-  counts = counts,
-  sep = c(":", "-"),
-  genome = 'hg19',
-  fragments = 'atac_v1_pbmc_10k_fragments.tsv.gz',
-  min.cells = 10,
-  min.features = 200
-)
+
+chrom_assay <- CreateChromatinAssay( counts = counts$Peaks, sep = c(":", "-"),
+                                     #genome = 'danRer11', 
+                                     fragments = '24hpa_atac_fragments.tsv.gz',
+                                     min.cells = 10, min.features = 200, )
+
 
 pbmc <- CreateSeuratObject(
   counts = chrom_assay,
@@ -43,15 +46,16 @@ granges(pbmc)
 
 #We can also add gene annotations to the pbmc object for the human genome. 
 #This will allow downstream functions to pull the gene annotation information directly from the object.
-
 # extract gene annotations from EnsDb
-annotations <- GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v75)
-
-# change to UCSC style since the data was mapped to hg19
-seqlevelsStyle(annotations) <- 'UCSC'
-
-# add the gene information to the object
+gtf <- rtracklayer::import('Danio_rerio.GRCz11.109.gtf')
+annotations <- gtf[gtf$type == 'gene']
+annotations <- keepStandardChromosomes(annotations, pruning.mode = 'coarse')
+seqlevelsStyle(annotations) <- 'NCBI'
 Annotation(pbmc) <- annotations
+
+head(Annotation(pbmc))
+head(Fragments(pbmc)[[1]])
+
 
 #Computing QC metrices
 # compute nucleosome signal score per cell
@@ -60,9 +64,10 @@ pbmc <- NucleosomeSignal(object = pbmc)
 # compute TSS enrichment score per cell
 pbmc <- TSSEnrichment(object = pbmc, fast = FALSE)
 
-# add blacklist ratio and fraction of reads in peaks
-pbmc$pct_reads_in_peaks <- pbmc$peak_region_fragments / pbmc$passed_filters * 100
-pbmc$blacklist_ratio <- pbmc$blacklist_region_fragments / pbmc$peak_region_fragments
+
+# # add blacklist ratio and fraction of reads in peaks
+# pbmc$pct_reads_in_peaks <- pbmc$peak_region_fragments / pbmc$passed_filters * 100
+# pbmc$blacklist_ratio <- pbmc$blacklist_region_fragments / pbmc$peak_region_fragments
 
 #Inspect the enrichment score by plotting
 pbmc$high.tss <- ifelse(pbmc$TSS.enrichment > 2, 'High', 'Low')
@@ -234,6 +239,8 @@ CoveragePlot(
   extend.downstream = 20000
 )
 
+
+BiocManager::install("EnsDb.danRer11")
 
 
 
