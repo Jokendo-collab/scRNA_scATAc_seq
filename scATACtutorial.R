@@ -30,7 +30,6 @@ chrom_assay <- CreateChromatinAssay( counts = counts$Peaks, sep = c(":", "-"),
                                      fragments = '24hpa_atac_fragments.tsv.gz',
                                      min.cells = 10, min.features = 200, )
 
-
 pbmc <- CreateSeuratObject(
   counts = chrom_assay,
   assay = "peaks",
@@ -95,6 +94,7 @@ pbmc <- subset(
     nucleosome_signal < 4 &
     TSS.enrichment > 2
 )
+
 pbmc
 
 #Normalization and linear dimensional reduction
@@ -128,7 +128,7 @@ DefaultAssay(pbmc) <- 'RNA'
 
 FeaturePlot(
   object = pbmc,
-  features = c('MS4A1', 'CD3D', 'LEF1', 'NKG7', 'TREM1', 'LYZ'),
+  features = c('robo3', 'and3', 'pdlim3b', 'boc', 'evpla', 'moxd1l'),
   pt.size = 0.1,
   max.cutoff = 'q95',
   ncol = 3
@@ -171,7 +171,7 @@ plot1 + plot2
 #We note that cluster 14 maps to CD4 Memory T cells, but is a very small cluster with lower QC metrics. 
 #As this group is likely representing low-quality cells, we remove it from downstream analysis.
 
-pbmc <- subset(pbmc, idents = 14, invert = TRUE)
+pbmc <- subset(pbmc, idents = 10, invert = TRUE)
 pbmc <- RenameIdents(
   object = pbmc,
   '0' = 'CD14 Mono',
@@ -198,8 +198,8 @@ da_peaks <- FindMarkers(
   object = pbmc,
   ident.1 = "CD4 Naive",
   ident.2 = "CD14 Mono",
-  test.use = 'LR',
-  latent.vars = 'peak_region_fragments'
+  test.use = 'LR'#,
+  #latent.vars = 'peak_region_fragments'
 )
 
 head(da_peaks)
@@ -234,13 +234,10 @@ levels(pbmc) <- c("CD4 Naive","CD4 Memory","CD8 Naive","CD8 Effector","DN T","NK
 #genonome coverage
 CoveragePlot(
   object = pbmc,
-  region = rownames(da_peaks)[1:3],
-  extend.upstream = 40000,
-  extend.downstream = 20000
+  region = rownames(da_peaks)[1],
+  extend.upstream = 4000,
+  extend.downstream = 2000
 )
-
-
-BiocManager::install("EnsDb.danRer11")
 
 
 
