@@ -18,23 +18,16 @@ set.seed(1234)
 
 #PRE-PROCESSING WORKFLOW
 counts <- Read10X_h5(filename = "24hpa_filtered_feature_bc_matrix.h5")
-metadata <- read.csv(
-  file = "24hpa_per_barcode_metrics.csv",
-  header = TRUE,
-  row.names = 1
-)
+
+metadata <- read.csv(file = "24hpa_per_barcode_metrics.csv",header = TRUE,row.names = 1)
 
 
 chrom_assay <- CreateChromatinAssay( counts = counts$Peaks, sep = c(":", "-"),
                                      #genome = 'danRer11', 
                                      fragments = '24hpa_atac_fragments.tsv.gz',
-                                     min.cells = 10, min.features = 200, )
+                                     min.cells = 10, min.features = 200)
 
-pbmc <- CreateSeuratObject(
-  counts = chrom_assay,
-  assay = "peaks",
-  meta.data = metadata
-)
+pbmc <- CreateSeuratObject(counts = chrom_assay,assay = "peaks",meta.data = metadata,project = "Zebrafish project")
 
 #Check the object
 pbmc
@@ -45,7 +38,7 @@ granges(pbmc)
 
 #We can also add gene annotations to the pbmc object for the human genome. 
 #This will allow downstream functions to pull the gene annotation information directly from the object.
-# extract gene annotations from EnsDb
+# extract gene annotations from gtf
 gtf <- rtracklayer::import('Danio_rerio.GRCz11.109.gtf')
 annotations <- gtf[gtf$type == 'gene']
 annotations <- keepStandardChromosomes(annotations, pruning.mode = 'coarse')
@@ -58,14 +51,14 @@ head(Fragments(pbmc)[[1]])
 
 #Computing QC metrices
 # compute nucleosome signal score per cell
-pbmc <- NucleosomeSignal(object = pbmc)
+pbmc <- NucleosomeSignal(object = pbmc,verbose = TRUE)
 
 # compute TSS enrichment score per cell
 pbmc <- TSSEnrichment(object = pbmc, fast = FALSE)
 
 
 # # add blacklist ratio and fraction of reads in peaks
-# pbmc$pct_reads_in_peaks <- pbmc$peak_region_fragments / pbmc$passed_filters * 100
+#pbmc$pct_reads_in_peaks <- pbmc$peak_region_fragments / pbmc$passed_filters * 100
 # pbmc$blacklist_ratio <- pbmc$blacklist_region_fragments / pbmc$peak_region_fragments
 
 #Inspect the enrichment score by plotting
@@ -74,26 +67,20 @@ TSSPlot(pbmc, group.by = 'high.tss') + NoLegend()
 
 #We can also look at the fragment length periodicity for all the cells, and group by cells with high or low nucleosomal signal strength.
 pbmc$nucleosome_group <- ifelse(pbmc$nucleosome_signal > 4, 'NS > 4', 'NS < 4')
-FragmentHistogram(object = pbmc, group.by = 'nucleosome_group')
+#FragmentHistogram(object = pbmc, group.by = 'nucleosome_group')
 
 VlnPlot(
   object = pbmc,
-  features = c('pct_reads_in_peaks', 'peak_region_fragments',
+  features = c('peak_region_fragments',
                'TSS.enrichment', 'blacklist_ratio', 'nucleosome_signal'),
   pt.size = 0.1,
   ncol = 5
 )
 
 #Finally we remove cells that are outliers for these QC metrics.
-pbmc <- subset(
-  x = pbmc,
-  subset = peak_region_fragments > 3000 &
-    peak_region_fragments < 20000 &
-    pct_reads_in_peaks > 15 &
-    blacklist_ratio < 0.05 &
-    nucleosome_signal < 4 &
-    TSS.enrichment > 2
-)
+
+pbmc <- subset(x = pbmc,nucleosome_signal < 4 & TSS.enrichment > 2)
+
 
 pbmc
 
@@ -109,7 +96,7 @@ DepthCor(pbmc)
 pbmc <- RunUMAP(object = pbmc, reduction = 'lsi', dims = 2:30)
 pbmc <- FindNeighbors(object = pbmc, reduction = 'lsi', dims = 2:30)
 pbmc <- FindClusters(object = pbmc, verbose = FALSE, algorithm = 3)
-DimPlot(object = pbmc, label = TRUE) 
+DimPlot(object = pbmc, label = TRUE) + NoLegend()
 
 #Create a gene activity matrix
 gene.activities <- GeneActivity(pbmc)
@@ -138,18 +125,11 @@ FeaturePlot(
 # Load the pre-processed scRNA-seq data for PBMCs
 pbmc_rna <- readRDS("pbmc_10k_v3.rds")
 
-transfer.anchors <- FindTransferAnchors(
-  reference = pbmc_rna,
-  query = pbmc,
-  reduction = 'cca'
-)
+transfer.anchors <- FindTransferAnchors(reference = pbmc_rna,query = pbmc,reduction = 'cca')
 
 predicted.labels <- TransferData(
-  anchorset = transfer.anchors,
-  refdata = pbmc_rna$celltype,
-  weight.reduction = pbmc[['lsi']],
-  dims = 2:30
-)
+  anchorset = transfer.anchors,refdata = pbmc_rna$celltype,
+  weight.reduction = pbmc[['lsi']],dims = 2:30)
 
 pbmc <- AddMetaData(object = pbmc, metadata = predicted.labels)
 
