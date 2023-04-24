@@ -1,2 +1,3 @@
 # scRNA and scATAC seq integration (Multiome analysis)
-Analysis and interpration of scRNAseq and scATACseq data from the zebrefish project
+- `datapreparation` pipeline is used to prepare the scRNA data
+- `scATACtutorial` script used in the analysis and visualization of bothe `scRNA and scATAC` sequence data
